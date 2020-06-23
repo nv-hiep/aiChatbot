@@ -19,12 +19,12 @@ lemmatizer = WordNetLemmatizer()
 stemmer    = LancasterStemmer()
 
 # Load model
-model   = load_model('chatbot_model.h5')
+model   = load_model('models/chatbot_model.h5')
 
 # Load data from files
 intents = json.loads(open('data/intents.json').read())
-words   = pickle.load(open('words.pkl','rb'))
-classes = pickle.load(open('classes.pkl','rb'))
+words   = pickle.load(open('data/words.pkl','rb'))
+classes = pickle.load(open('data/classes.pkl','rb'))
 
 
 

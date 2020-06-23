@@ -21,6 +21,7 @@ except Exception:  # Python 3.x
 import numpy             as np
 
 from keras.models        import load_model
+from keras               import utils
 
 # For tkinter GUI
 import tkinter
@@ -29,6 +30,9 @@ from tkinter             import *
 import nltk
 from nltk.stem           import WordNetLemmatizer
 from nltk.stem.lancaster import LancasterStemmer
+
+from keras.preprocessing.text     import Tokenizer
+from keras.preprocessing.sequence import pad_sequences
 
 # Import the required module for text  
 # to speech conversion 
@@ -42,12 +46,39 @@ lemmatizer = WordNetLemmatizer()
 stemmer    = LancasterStemmer()
 
 # Load model
-model   = load_model('models/chatbot_model.h5')
+model   = load_model('models/chatbot_model_with_embedding.h5')
 
-# Load data
+# Read data
 intents = json.loads(open('data/intents.json').read())
-words   = pickle.load(open('data/words.pkl','rb'))
-classes = pickle.load(open('data/classes.pkl','rb'))
+
+oov_tok     = '<OOV>' # out-of-vocabulary words during text_to_sequence calls
+intent_list = []
+label_list  = []
+
+for (index, intent) in enumerate(intents['intents']):
+  intent_list += intent['patterns']
+  num_patterns = len(intent['patterns'])
+  label_list += [index] * num_patterns
+# End - for
+
+tokenizer = Tokenizer(oov_token = oov_tok)
+tokenizer.fit_on_texts(intent_list)
+
+word_index = tokenizer.word_index
+sequences  = tokenizer.texts_to_sequences(intent_list) # -> [[37, 17],  [12, 3, 2],  [23, 38, 17], ... ]
+
+max_length = len( max(sequences, key=len) )            # max(sequences, key=len) <-> max( len(a) for a in sequences)
+vocab_size = len(word_index)
+
+padded         = pad_sequences(sequences)
+padded_length  = len(padded[0])                        # e.g: array([[  0,   0,   0,   0,   0,   0,   0,  37,  17],...])
+labels         = utils.to_categorical(label_list)        
+num_categories = len(labels[0])
+
+
+
+
+
 
 
 # Here, we are creating our class, Window, and inheriting from the Frame
@@ -181,10 +212,10 @@ class Window(tk.Frame):
         self.chat_box.insert(END, 'You: ' + self.msg + '\n\n')
         self.chat_box.config(foreground='#446665', font=('Verdana', 12 ))
 
-        ints     = self.predict_class()
-        self.res = self.get_response(ints, intents)
+        tag      = self.predict_class()
+        self.res = self.get_response(tag, intents)
         
-        self.chat_box.insert(END, 'Bot: ' + self.res + ' (' + ints[0]['intent'] + ', '+ str(round(float(ints[0]['probability'])*100.,1)) +'%)' + '\n\n')
+        self.chat_box.insert(END, 'Bot: ' + self.res + '\n\n')
         # Speak out the response
         # self.speak(res)
 
@@ -197,62 +228,27 @@ class Window(tk.Frame):
 
 
 
-    def clean_up_sentence(self):
-        # tokenize the pattern
-        sentence_words = nltk.word_tokenize(self.msg)
-        # stem each word
-        sentence_words = [stemmer.stem(word.lower()) for word in sentence_words]
-        return sentence_words
-
-
-
-
-
-    # return bag of words array: 0 or 1 for each word in the bag that exists in the sentence
-    def bow(self, words):
-        # tokenize the pattern
-        sentence_words = self.clean_up_sentence()
-        
-        # bag of words  vocabulary matrix
-        bag = [0]*len(words)  
-        
-        for s in sentence_words:
-            for (i,w )in enumerate(words):
-                if (w == s):
-                    # assign 1 if current word is in the vocabulary position
-                    bag[i] = 1
-                # -
-            # End - for
-        # End - for
-
-        return(np.array(bag))
-
-
-
 
 
     def predict_class(self):
-        # filter below  threshold predictions
-        p         = self.bow(words)
-        res       = model.predict(np.array([p]))[0]
-        
-        er_thresh = 0.25
-        results   = [[i,r] for i,r in enumerate(res) if r > er_thresh]
-        
-        # sorting strength probability
-        results.sort(key=lambda x: x[1], reverse=True)
-        return_list = []
-        
-        for r in results:
-            return_list.append({'intent': classes[r[0]], 'probability': str(r[1])})
-        
-        return return_list
+        # filter below  threshold predictions       
+        sequence        = tokenizer.texts_to_sequences([self.msg])
+        padded_sequence = pad_sequences(sequence, maxlen=padded_length)
+
+        prediction      = model.predict(padded_sequence)[0]
+
+        # er_thresh       = 0.25
+        # results         = [r for r in prediction if r > er_thresh]
+
+        intent          = intents['intents'][np.argmax(prediction)]
+        tag             = intent['tag']
+
+        return tag
 
 
 
 
-    def get_response(self, ints, intents_json):
-        tag = ints[0]['intent']
+    def get_response(self, tag, intents_json):
         list_of_intents = intents_json['intents']
 
         ret = ''
