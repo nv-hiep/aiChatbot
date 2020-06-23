@@ -18,9 +18,11 @@ nltk.download('punkt')
 lemmatizer = WordNetLemmatizer()
 stemmer    = LancasterStemmer()
 
+# Load model
 model   = load_model('chatbot_model.h5')
 
-intents = json.loads(open('intents.json').read())
+# Load data from files
+intents = json.loads(open('data/intents.json').read())
 words   = pickle.load(open('words.pkl','rb'))
 classes = pickle.load(open('classes.pkl','rb'))
 
@@ -71,17 +73,17 @@ def bow(sentence, words):
 
 def predict_class(sentence):
     # filter below  threshold predictions
-    p = bow(sentence, words)
-    res = model.predict(np.array([p]))[0]
-    ERROR_THRESHOLD = 0.25
-    results = [[i,r] for i,r in enumerate(res) if r>ERROR_THRESHOLD]
+    p         = bow(sentence, words)
+    res       = model.predict(np.array([p]))[0]
+    er_thresh = 0.25
+    results   = [[i,r] for i,r in enumerate(res) if r > er_thresh]
     
     # sorting strength probability
     results.sort(key=lambda x: x[1], reverse=True)
     return_list = []
     
     for r in results:
-        return_list.append({"intent": classes[r[0]], "probability": str(r[1])})
+        return_list.append({'intent': classes[r[0]], 'probability': str(r[1])})
     
     return return_list
 
@@ -101,18 +103,18 @@ def get_response(ints, intents_json):
 
 
 def send():
-    msg = entry_box.get("1.0",'end-1c').strip()
-    entry_box.delete("0.0",END)
+    msg = entry_box.get('1.0','end-1c').strip()
+    entry_box.delete('0.0',END)
 
     if msg != '':
         chat_box.config(state=NORMAL)
-        chat_box.insert(END, "You: " + msg + '\n\n')
-        chat_box.config(foreground="#446665", font=("Verdana", 12 ))
+        chat_box.insert(END, 'You: ' + msg + '\n\n')
+        chat_box.config(foreground='#446665', font=('Verdana', 12 ))
     
         ints = predict_class(msg)
         res = get_response(ints, intents)
         
-        chat_box.insert(END, "Bot: " + res + ' (' + ints[0]['intent'] + ', '+ str(round(float(ints[0]['probability'])*100.,1)) +'%)' + '\n\n')
+        chat_box.insert(END, 'Bot: ' + res + ' (' + ints[0]['intent'] + ', '+ str(round(float(ints[0]['probability'])*100.,1)) +'%)' + '\n\n')
             
         chat_box.config(state=DISABLED)
         chat_box.yview(END)
@@ -126,38 +128,34 @@ def send():
 
 #---------- MAIN ----------#
 
+# Test --- 
 # msg = 'hi'
 # ints = predict_class(msg)
 # res = get_response(ints, intents)
-
 # print(ints)
-
 # print( res )
 
-
-# exit()
-
 root = Tk()
-root.title("Chatbot")
-root.geometry("500x600")
+root.title('Chatbot')
+root.geometry('500x600')
 root.resizable(width=FALSE, height=FALSE)
 
 #Create Chat window
-chat_box = Text(root, bd=0, bg="white", height="8", width="50", font="Arial")
+chat_box = Text(root, bd=0, bg='white', height='8', width='50', font='Arial')
 chat_box.config(state=DISABLED)
 
 #Bind scrollbar to Chat window
-scrollbar = Scrollbar(root, command=chat_box.yview, cursor="heart")
+scrollbar = Scrollbar(root, command=chat_box.yview, cursor='heart')
 chat_box['yscrollcommand'] = scrollbar.set
 
 #Create Button to send message
-send_button = Button(root, font=("Verdana",12,'bold'), text="Send", width="12", height=5,
-                    bd=0, bg="#f9a602", activebackground="#3c9d9b",fg='#000000',
+send_button = Button(root, font=('Verdana',12,'bold'), text='Send', width='12', height=5,
+                    bd=0, bg='#f9a602', activebackground='#3c9d9b',fg='#000000',
                     command= send )
 
 #Create the box to enter message
-entry_box = Text(root, bd=0, bg="white",width="29", height="5", font="Arial")
-#entry_box.bind("<Return>", send)
+entry_box = Text(root, bd=0, bg='white',width='29', height='5', font='Arial')
+#entry_box.bind('<Return>', send)
 
 
 #Place all components on the screen
